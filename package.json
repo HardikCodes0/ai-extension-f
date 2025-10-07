@@ -1,0 +1,22 @@
+{
+  "name": "ai-browser-copilot-server",
+  "version": "1.0.0",
+  "description": "Node.js middleware for AI Browser Copilot extension",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["ai", "browser", "extension", "ollama", "llm"],
+  "author": "AI Browser Copilot",
+  "license": "MIT"
+}
+

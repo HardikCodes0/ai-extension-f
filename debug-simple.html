@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Persistence Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 15px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Simple Persistence Debug</h1>
+    
+    <button onclick="testBasicStorage()">1. Test Basic Storage</button>
+    <button onclick="testBackgroundScript()">2. Test Background Script</button>
+    <button onclick="testSaveData()">3. Test Save Data</button>
+    <button onclick="testRetrieveData()">4. Test Retrieve Data</button>
+    <button onclick="testFullFlow()">5. Test Full Flow</button>
+    
+    <div id="log" class="log"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function testBasicStorage() {
+            clearLog();
+            log('Testing basic Chrome storage...');
+            
+            chrome.storage.local.set({ testKey: 'testValue' }, () => {
+                if (chrome.runtime.lastError) {
+                    log('❌ Storage set failed: ' + chrome.runtime.lastError.message, 'error');
+                } else {
+                    log('✅ Storage set successful', 'success');
+                    
+                    chrome.storage.local.get(['testKey'], (result) => {
+                        if (chrome.runtime.lastError) {
+                            log('❌ Storage get failed: ' + chrome.runtime.lastError.message, 'error');
+                        } else {
+                            log('✅ Storage get successful: ' + result.testKey, 'success');
+                        }
+                    });
+                }
+            });
+        }
+
+        function testBackgroundScript() {
+            log('Testing background script communication...');
+            
+            chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    log('❌ Background script not responding: ' + chrome.runtime.lastError.message, 'error');
+                } else {
+                    log('✅ Background script responding: ' + JSON.stringify(response), 'success');
+                }
+            });
+        }
+
+        function testSaveData() {
+            log('Testing data save...');
+            
+            const testData = {
+                action: 'test',
+                description: 'Test activity',
+                result: 'Test result',
+                data: { test: true, timestamp: Date.now() }
+            };
+            
+            chrome.runtime.sendMessage({
+                action: 'saveUserHistory',
+                entry: testData
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    log('❌ Save via background failed: ' + chrome.runtime.lastError.message, 'error');
+                    
+                    // Try direct storage
+                    log('Trying direct storage...');
+                    chrome.storage.local.get(['userHistory'], (result) => {
+                        const history = result.userHistory || [];
+                        history.push({
+                            ...testData,
+                            timestamp: Date.now(),
+                            id: Date.now() + Math.random()
+                        });
+                        chrome.storage.local.set({ userHistory: history }, () => {
+                            if (chrome.runtime.lastError) {
+                                log('❌ Direct storage failed: ' + chrome.runtime.lastError.message, 'error');
+                            } else {
+                                log('✅ Direct storage successful', 'success');
+                            }
+                        });
+                    });
+                } else {
+                    log('✅ Save via background successful: ' + JSON.stringify(response), 'success');
+                }
+            });
+        }
+
+        function testRetrieveData() {
+            log('Testing data retrieval...');
+            
+            chrome.runtime.sendMessage({ action: 'getPersistentData' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    log('❌ Retrieve via background failed: ' + chrome.runtime.lastError.message, 'error');
+                    
+                    // Try direct storage
+                    log('Trying direct storage...');
+                    chrome.storage.local.get(['userHistory'], (result) => {
+                        if (chrome.runtime.lastError) {
+                            log('❌ Direct storage get failed: ' + chrome.runtime.lastError.message, 'error');
+                        } else {
+                            log('✅ Direct storage get successful: ' + JSON.stringify(result), 'success');
+                        }
+                    });
+                } else {
+                    log('✅ Retrieve via background successful: ' + JSON.stringify(response), 'success');
+                }
+            });
+        }
+
+        function testFullFlow() {
+            clearLog();
+            log('Testing full flow...');
+            
+            // Step 1: Clear data
+            chrome.storage.local.clear(() => {
+                log('Step 1: Cleared storage');
+                
+                // Step 2: Save test data
+                setTimeout(() => {
+                    testSaveData();
+                    
+                    // Step 3: Retrieve data
+                    setTimeout(() => {
+                        testRetrieveData();
+                        
+                        // Step 4: Check if data persisted
+                        setTimeout(() => {
+                            chrome.storage.local.get(['userHistory'], (result) => {
+                                if (result.userHistory && result.userHistory.length > 0) {
+                                    log('✅ Full flow test PASSED - data persisted', 'success');
+                                    log('Data: ' + JSON.stringify(result.userHistory), 'success');
+                                } else {
+                                    log('❌ Full flow test FAILED - no data found', 'error');
+                                }
+                            });
+                        }, 1000);
+                    }, 1000);
+                }, 1000);
+            });
+        }
+
+        // Auto-run basic test on load
+        window.onload = function() {
+            log('Page loaded, running basic tests...');
+            testBasicStorage();
+        };
+    </script>
+</body>
+</html>

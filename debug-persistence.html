@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Persistence Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>AI Browser Copilot - Persistence Debug Tool</h1>
+    
+    <div class="test-section">
+        <h2>Test Data Persistence</h2>
+        <p>This tool helps debug the persistent storage functionality.</p>
+        
+        <button onclick="testSaveData()">1. Save Test Data</button>
+        <button onclick="testRetrieveData()">2. Retrieve Data</button>
+        <button onclick="testClearData()">3. Clear All Data</button>
+        <button onclick="testFullCycle()">4. Run Full Test Cycle</button>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Current Data Status</h2>
+        <button onclick="checkCurrentData()">Check Current Data</button>
+        <div id="currentData" class="log"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function testSaveData() {
+            clearLog();
+            log('Testing data save...');
+            
+            // Test saving user history
+            chrome.runtime.sendMessage({
+                action: 'saveUserHistory',
+                entry: {
+                    action: 'testAction',
+                    description: 'Test user action',
+                    result: 'Test result',
+                    data: { test: true, timestamp: Date.now() }
+                }
+            }, (response) => {
+                if (response && response.success) {
+                    log('✅ User history saved successfully', 'success');
+                } else {
+                    log('❌ Failed to save user history', 'error');
+                }
+            });
+
+            // Test saving prompt history
+            chrome.runtime.sendMessage({
+                action: 'savePromptHistory',
+                prompt: 'Test prompt',
+                response: 'Test response',
+                type: 'test'
+            }, (response) => {
+                if (response && response.success) {
+                    log('✅ Prompt history saved successfully', 'success');
+                } else {
+                    log('❌ Failed to save prompt history', 'error');
+                }
+            });
+
+            // Test saving task summary
+            chrome.runtime.sendMessage({
+                action: 'saveTaskSummary',
+                summary: {
+                    type: 'test',
+                    description: 'Test task summary',
+                    result: 'Test task completed',
+                    data: { test: true }
+                }
+            }, (response) => {
+                if (response && response.success) {
+                    log('✅ Task summary saved successfully', 'success');
+                } else {
+                    log('❌ Failed to save task summary', 'error');
+                }
+            });
+        }
+
+        function testRetrieveData() {
+            log('Testing data retrieval...');
+            
+            chrome.runtime.sendMessage({
+                action: 'getPersistentData'
+            }, (response) => {
+                if (response && response.success) {
+                    log('✅ Data retrieved successfully', 'success');
+                    log('User History: ' + (response.data.userHistory ? response.data.userHistory.length : 0) + ' entries');
+                    log('Tab Analysis: ' + (response.data.tabAnalysisHistory ? response.data.tabAnalysisHistory.length : 0) + ' entries');
+                    log('Prompt History: ' + (response.data.promptHistory ? response.data.promptHistory.length : 0) + ' entries');
+                    log('Task Summaries: ' + (response.data.taskSummaries ? response.data.taskSummaries.length : 0) + ' entries');
+                    
+                    // Show detailed data
+                    if (response.data.userHistory && response.data.userHistory.length > 0) {
+                        log('Latest user history entry: ' + JSON.stringify(response.data.userHistory[response.data.userHistory.length - 1], null, 2));
+                    }
+                } else {
+                    log('❌ Failed to retrieve data', 'error');
+                }
+            });
+        }
+
+        function testClearData() {
+            if (confirm('Are you sure you want to clear all persistent data?')) {
+                log('Clearing all data...');
+                
+                chrome.runtime.sendMessage({
+                    action: 'clearPersistentData'
+                }, (response) => {
+                    if (response && response.success) {
+                        log('✅ All data cleared successfully', 'success');
+                    } else {
+                        log('❌ Failed to clear data', 'error');
+                    }
+                });
+            }
+        }
+
+        function testFullCycle() {
+            clearLog();
+            log('Running full test cycle...');
+            
+            // Step 1: Clear data
+            log('Step 1: Clearing existing data...');
+            chrome.runtime.sendMessage({
+                action: 'clearPersistentData'
+            }, (response) => {
+                if (response && response.success) {
+                    log('✅ Data cleared', 'success');
+                    
+                    // Step 2: Save test data
+                    log('Step 2: Saving test data...');
+                    testSaveData();
+                    
+                    // Step 3: Wait and retrieve
+                    setTimeout(() => {
+                        log('Step 3: Retrieving data after save...');
+                        testRetrieveData();
+                        
+                        // Step 4: Test persistence across "restart"
+                        setTimeout(() => {
+                            log('Step 4: Testing persistence (simulating restart)...');
+                            testRetrieveData();
+                        }, 2000);
+                    }, 2000);
+                } else {
+                    log('❌ Failed to clear data', 'error');
+                }
+            });
+        }
+
+        function checkCurrentData() {
+            const currentDataDiv = document.getElementById('currentData');
+            currentDataDiv.innerHTML = 'Loading...';
+            
+            chrome.runtime.sendMessage({
+                action: 'getPersistentData'
+            }, (response) => {
+                if (response && response.success) {
+                    currentDataDiv.innerHTML = JSON.stringify(response.data, null, 2);
+                } else {
+                    currentDataDiv.innerHTML = 'Failed to retrieve data';
+                }
+            });
+        }
+
+        // Auto-check data on load
+        window.onload = function() {
+            checkCurrentData();
+        };
+    </script>
+</body>
+</html>

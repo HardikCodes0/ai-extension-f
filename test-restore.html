@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Restore Button</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Restore Button Debug Tool</h1>
+    <p>This tool helps test the restore button functionality.</p>
+
+    <div class="test-section">
+        <h2>Step 1: Test Background Script Communication</h2>
+        <button onclick="testBackgroundPing()">Test Background Script</button>
+        <div id="pingResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 2: Save a Test Operation</h2>
+        <button onclick="saveTestOperation()">Save Test Operation</button>
+        <div id="saveResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 3: Check Last Operation</h2>
+        <button onclick="checkLastOperation()">Check Last Operation</button>
+        <div id="checkResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 4: Check Storage Directly</h2>
+        <button onclick="checkStorage()">Check Chrome Storage</button>
+        <div id="storageResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 5: Test Restore Button Visibility</h2>
+        <p>Open the extension popup and check if the restore button appears.</p>
+        <button onclick="openPopup()">Open Extension Popup</button>
+    </div>
+
+    <script>
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = 'result ' + (isError ? 'error' : 'success');
+        }
+
+        function testBackgroundPing() {
+            log('pingResult', 'Testing background script...');
+            chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    log('pingResult', '❌ Error: ' + chrome.runtime.lastError.message, true);
+                } else {
+                    log('pingResult', '✅ Success: ' + JSON.stringify(response, null, 2));
+                }
+            });
+        }
+
+        function saveTestOperation() {
+            log('saveResult', 'Saving test operation...');
+            const testOperation = {
+                type: 'pageAnalysis',
+                description: 'Test Page Analysis',
+                data: {
+                    result: {
+                        summary: 'This is a test summary',
+                        originalLength: 100,
+                        timestamp: Date.now()
+                    },
+                    type: 'summarize',
+                    content: 'Test content for restore'
+                },
+                timestamp: Date.now()
+            };
+
+            chrome.runtime.sendMessage({
+                action: 'saveLastOperation',
+                operation: testOperation
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    log('saveResult', '❌ Error: ' + chrome.runtime.lastError.message, true);
+                } else {
+                    log('saveResult', '✅ Success: Operation saved\n' + JSON.stringify(response, null, 2));
+                }
+            });
+        }
+
+        function checkLastOperation() {
+            log('checkResult', 'Checking last operation...');
+            chrome.runtime.sendMessage({ action: 'getLastOperation' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    log('checkResult', '❌ Error: ' + chrome.runtime.lastError.message, true);
+                } else if (response && response.success && response.operation) {
+                    log('checkResult', '✅ Last operation found:\n' + JSON.stringify(response.operation, null, 2));
+                } else {
+                    log('checkResult', '⚠️ No last operation found\n' + JSON.stringify(response, null, 2));
+                }
+            });
+        }
+
+        function checkStorage() {
+            log('storageResult', 'Checking Chrome storage...');
+            chrome.storage.local.get(['lastOperation'], (result) => {
+                if (chrome.runtime.lastError) {
+                    log('storageResult', '❌ Error: ' + chrome.runtime.lastError.message, true);
+                } else {
+                    log('storageResult', '✅ Storage contents:\n' + JSON.stringify(result, null, 2));
+                }
+            });
+        }
+
+        function openPopup() {
+            alert('Click the extension icon in your browser toolbar to open the popup and check if the restore button is visible.');
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            console.log('Test page loaded. Run tests manually or check console for errors.');
+        });
+    </script>
+</body>
+</html>
